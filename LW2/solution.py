@@ -1,179 +1,175 @@
-import math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.patches import Polygon, Ellipse
+import sympy as sp
 
-# Количество шагов анимации
-STEPS = 1001
 
-# Продолжительность анимации
-FINAL_TIME = 20
+def spring_coords(x1, x2, y, num_segments=15):
+    """Создаёт координаты для ломаной линии пружины"""
+    x_coords = np.linspace(x1, x2, num_segments + 1)
+    y_coords = np.zeros_like(x_coords) + y
+    for i in range(1, len(x_coords) - 1, 2):
+        y_coords[i] += 0.008
+        y_coords[i + 1] -= 0.008
+    return x_coords, y_coords
 
-# Длина тележки
-BOX_X = 6
 
-# Высота тележки
-BOX_Y = 2
+# Исходные параметры
+R = 0.1  # Радиус колеса
+OA = 0.06  # Длина маятника (большая полуось эллипса)
+l0 = 0.11  # Длина недеформированной пружины
+bar_length = 0.11  # Длина стержня
+bar_thickness = 0.01  # Толщина стержня
 
-# Длина пружины в недеформированном состоянии
-X0 = 4
+# Параметры движения
+a_s = 0.16  # Амплитуда колебания пружины
+omega_s = 2 * np.pi / 4  # Угловая частота пружины
 
-# Радиус колеса
-WHEEL_R = 0.5
+g = 9.81  # Ускорение свободного падения
+L = OA + 0.01  # Длина математического маятника
+omega_phi = 2 * np.pi  # Частота 1 полный цикл в секунду
+A_phi = np.pi / 6  # Амплитуда угла (30 градусов)
 
-# Длина стержня
-LENGTH = 3
-BLACK = 'black'
-RED = 'red'
+# Временные параметры
+t_max = 4  # Длительность анимации
+fps = 30  # Частота кадров
+t = np.linspace(0, t_max, t_max * fps)
 
-# Массив временных точек
-t = np.linspace(0, FINAL_TIME, STEPS)
+t_sym = sp.symbols('t')
 
-# Выражения для изменения угла и координаты
-x = np.cos(0.2 * t) + 3 * np.sin(1.8 * t)
-phi = 2 * np.sin(1.7 * t) + 5 * np.cos(1.2 * t)
+# Функции для колебаний с использованием символьной переменной и lambdify
+s_expr = l0 + a_s * (1.2 + sp.sin(omega_s * t_sym))
+phi_expr = A_phi * sp.cos(0.75 * omega_phi * t_sym)
 
-# Выражения координат центра тележки
-x_a = X0 + x + BOX_X / 2
-y_a = 2 * WHEEL_R + BOX_Y / 2 + 0.2
+s_func = sp.lambdify(t_sym, s_expr, 'numpy')
+phi_func = sp.lambdify(t_sym, phi_expr, 'numpy')
 
-# Выражения координат конца стержня
-x_b = x_a + LENGTH * np.sin(phi)
-y_b = y_a + LENGTH * np.cos(phi)
+s_values = s_func(t)  # Массив значений для колебания пружины
+phi_values = phi_func(t)  # Массив значений для угла маятника
 
-# Массивы относительных координат углов тележки для отрисовки
-x_box = np.array([-BOX_X / 2, BOX_X / 2, BOX_X / 2, -BOX_X / 2, -BOX_X / 2])
-y_box = np.array([BOX_Y / 2, BOX_Y / 2, -BOX_Y / 2, -BOX_Y / 2, BOX_Y / 2])
+# Инициализация значений для t = 0
+x_cylinder_0 = s_values[0]
+phi_angle_0 = phi_values[0]
 
-# Массив углов и выражения для отрисовки окружностей колёс
-psi = np.linspace(0, 2 * math.pi, 30)
-x_wheel = WHEEL_R * np.cos(psi)
-y_wheel = WHEEL_R * np.sin(psi)
+# Координаты цилиндра
+theta = np.linspace(0, 2 * np.pi, 100)
+x_circle_0 = x_cylinder_0 + R * np.cos(theta)
+y_circle_0 = R + R * np.sin(theta)  # Центр поднят на R
 
-# Выражения для координат центров колёс
-x_c1 = X0 + x + BOX_X / 5
-y_c1 = WHEEL_R
-x_c2 = X0 + x + 4 * BOX_X / 5
-y_c2 = WHEEL_R
+# Координаты пружины
+spring_x_0, spring_y_0 = spring_coords(0, x_cylinder_0 - bar_length, R, num_segments=15)
 
-# Координаты отрисовки координатных осей
-x_ground = np.array([0, 0, 15])
-y_ground = np.array([6, 0, 0])
+# Координаты стержня
+bar_x_0 = [
+    x_cylinder_0 - bar_length,
+    x_cylinder_0 - bar_length,
+    x_cylinder_0,
+    x_cylinder_0,
+]
+bar_y_0 = [
+    R - bar_thickness / 2,
+    R + bar_thickness / 2,
+    R + bar_thickness / 2,
+    R - bar_thickness / 2,
+]
 
-# Число точек перегиба пружины
-K = 19
+# Эллипс маятника
+x_pendulum_0 = x_cylinder_0 + (OA * 2 / 3) * np.sin(phi_angle_0)
+y_pendulum_0 = R - (OA * 2 / 3) * np.cos(phi_angle_0)
 
-# Относительная высота точки перегиба пружины
-SH = 0.4
+# Точка O
+pivot_0 = (x_cylinder_0, R)
 
-# Расстояние между двумя точками перегиба (кроме крайних)
-B = 1 / (K - 2)
+# Линия OA
+x_OA_0 = [x_cylinder_0, x_cylinder_0 + OA * np.sin(phi_angle_0)]
+y_OA_0 = [R, R - OA * np.cos(phi_angle_0)]
 
-# Инициализация массивов координат точек перегиба
-x_spr = np.zeros(K)
-y_spr = np.zeros(K)
+# Точка А
+end_point_0 = (x_OA_0[1], y_OA_0[1])
 
-# Начальная координата крайней правой точки
-x_spr[K - 1] = 1
+fig, ax = plt.subplots()
+ax.set_xlim(-0.1, 0.6)
+ax.set_ylim(-0.05, 0.25)
+ax.set_aspect('equal')
+ax.grid()
 
-# Заполнение массивов координатами
-for j in range(K - 2):
-    x_spr[j + 1] = B * ((j + 1) - 1 / 2)
-    y_spr[j + 1] = SH * (-1) ** j
+angle_diameter = -(s_values[0] - l0) * (2 * np.pi) / a_s
+x_diameter = [s_values[0] - R * np.cos(angle_diameter), s_values[0] + R * np.cos(angle_diameter)]
+y_diameter = [R - R * np.sin(angle_diameter), R + R * np.sin(angle_diameter)]
 
-# Массив длин пружины в разные моменты
-spright_length = X0 + x
+diameter_line, = ax.plot(x_diameter, y_diameter, 'b-', lw=2, zorder=1)
 
-# Количество полных витков
-NV = 3
+cylinder, = ax.plot(x_circle_0, y_circle_0, 'b', lw=2)  # Цилиндр
+spring, = ax.plot(spring_x_0, spring_y_0, 'k', lw=2)  # Пружина
+bar = Polygon([[bar_x_0[0], bar_y_0[0]], [bar_x_0[1], bar_y_0[1]], [bar_x_0[2], bar_y_0[2]],
+               [bar_x_0[3], bar_y_0[3]]], closed=True, color='m')  # Прямоугольный стержень
+ax.add_patch(bar)
 
-# Минимальный радиус пружины
-R1 = 0.2
+# Эллипс маятника
+pendulum_ellipse = Ellipse((x_pendulum_0, y_pendulum_0), width=0.04, height=(2 * OA) / 1.5, color='g')
+ax.add_patch(pendulum_ellipse)
 
-# Максимальный радиус пружины
-R2 = 0.9
+point_o, = ax.plot(pivot_0[0], pivot_0[1], 'ro')  # Точка O
+line_oa, = ax.plot(x_OA_0, y_OA_0, 'r-', lw=2)  # Линия OA
+point_a, = ax.plot(end_point_0[0], end_point_0[1], 'ro')  # Точка на конце линии OA
 
-# Получения массива углов и координат точек спиральной пружины
-theta = np.linspace(0, NV * 2 * math.pi - phi[0], 100)
-x_spiral_spr = -(R1 + theta * (R2 - R1) / theta[-1]) * np.sin(theta)
-y_spiral_spr = (R1 + theta * (R2 - R1) / theta[-1]) * np.cos(theta)
-
-# Массив углов вращения колёс
-alpha = x / WHEEL_R
-
-# Инициализация окна с графиком
-figure = plt.figure(figsize=[10, 5])
-figure.canvas.manager.set_window_title('Вариант 2')
-
-axis = figure.add_subplot(1, 1, 1)
-axis.axis('equal')
-axis.set(xlim=[0, 15], ylim=[-1.5, 6.5])
-
-# Отрисовка координатных осей
-axis.plot(x_ground, y_ground, BLACK)
-
-# Отрисовка тележки и колёс
-drawn_box = axis.plot(x_box + x_a[0], y_box + y_a, BLACK)[0]
-drawn_wheel1 = axis.plot(x_wheel + x_c1[0], y_wheel + y_c1, BLACK)[0]
-drawn_wheel2 = axis.plot(x_wheel + x_c2[0], y_wheel + y_c2, BLACK)[0]
-
-# Отрисовка креплений колёс
-drawn_vc1 = axis.plot([x_c1[0] - WHEEL_R, x_c1[0], x_c1[0] + WHEEL_R], [2 * y_c1 + 0.2, y_c1, 2 * y_c1 + 0.2], BLACK)[0]
-drawn_vc2 = axis.plot([x_c2[0] - WHEEL_R, x_c2[0], x_c2[0] + WHEEL_R], [2 * y_c2 + 0.2, y_c2, 2 * y_c2 + 0.2], BLACK)[0]
-
-# Отрисовка обычной пружины
-drawn_spring = axis.plot(x_spr * spright_length[0], y_spr + y_a, RED)[0]
-
-# Отрисовка спиральной пружины
-drawn_spiral_spring = axis.plot(x_spiral_spr + x_a[0], y_spiral_spr + y_a, RED)[0]
-
-# Отрисовка диаметров колёс
-drawn_wheel1_d = axis.plot([x_c1[0] + WHEEL_R * np.sin(alpha[0]), x_c1[0] - WHEEL_R * np.sin(alpha[0])],
-                           [y_c1 + WHEEL_R * np.cos(alpha[0]), y_c1 - WHEEL_R * np.cos(alpha[0])], BLACK)[0]
-drawn_wheel2_d = axis.plot([x_c2[0] + WHEEL_R * np.sin(alpha[0]), x_c2[0] - WHEEL_R * np.sin(alpha[0])],
-                           [y_c2 + WHEEL_R * np.cos(alpha[0]), y_c2 - WHEEL_R * np.cos(alpha[0])], BLACK)[0]
-
-# Отрисовка стержня
-drawn_ab = axis.plot([x_a[0], x_b[0]], [y_a, y_b[0]], BLACK)[0]
-
-# Отрисовка шарнира и груза на конце стержня
-point_a = axis.plot(x_a[0], y_a, marker='o')[0]
-point_b = axis.plot(x_b[0], y_b[0], marker='o', markersize=20)[0]
+ax.plot([-0.1, 0.6], [0, 0], 'black')  # Ось OX
+ax.plot([0, 0], [-0.15, 0.25], 'black')  # Ось OY
 
 
 def animate(i):
-    """Изменение величин для нового шага анимации"""
-    drawn_box.set_data(x_box + x_a[i], y_box + y_a)
+    # Обновление диаметра колеса
+    angle_diameter = -(s_values[i] - l0) * (2 * np.pi) / a_s
+    x_diameter = [s_values[i] - R * np.cos(angle_diameter), s_values[i] + R * np.cos(angle_diameter)]
+    y_diameter = [R - R * np.sin(angle_diameter), R + R * np.sin(angle_diameter)]
+    diameter_line.set_data(x_diameter, y_diameter)
 
-    drawn_wheel1.set_data(x_wheel + x_c1[i], y_wheel + y_c1)
-    drawn_wheel2.set_data(x_wheel + x_c2[i], y_wheel + y_c2)
+    # Координаты колеса
+    x_circle = s_values[i] + R * np.cos(theta)
+    y_circle = R + R * np.sin(theta)  # Центр поднят на R
+    cylinder.set_data(x_circle, y_circle)
 
-    drawn_vc1.set_data([x_c1[i] - WHEEL_R, x_c1[i], x_c1[i] + WHEEL_R], [2 * y_c1 + 0.2, y_c1, 2 * y_c1 + 0.2])
-    drawn_vc2.set_data([x_c2[i] - WHEEL_R, x_c2[i], x_c2[i] + WHEEL_R], [2 * y_c2 + 0.2, y_c2, 2 * y_c2 + 0.2])
+    # Координаты пружины
+    spring_x, spring_y = spring_coords(0, s_values[i] - bar_length, R)
+    spring.set_data(spring_x, spring_y)
 
-    drawn_ab.set_data([x_a[i], x_b[i]], [y_a, y_b[i]])
-    point_a.set_data(x_a[i], y_a)
-    point_b.set_data(x_b[i], y_b[i])
+    # Координаты стержня
+    bar_x = [
+        s_values[i] - bar_length,
+        s_values[i] - bar_length,
+        s_values[i],
+        s_values[i],
+    ]
+    bar_y = [
+        R - bar_thickness / 2,
+        R + bar_thickness / 2,
+        R + bar_thickness / 2,
+        R - bar_thickness / 2,
+    ]
+    bar.set_xy(np.column_stack([bar_x, bar_y]))
 
-    drawn_spring.set_data(x_spr * spright_length[i], y_spr + y_a)
-    _theta = np.linspace(0, NV * 2 * math.pi - phi[i], 100)
-    _x_spiral_spr = -(R1 + _theta * (R2 - R1) / _theta[-1]) * np.sin(_theta)
-    _y_spiral_spr = (R1 + _theta * (R2 - R1) / _theta[-1]) * np.cos(_theta)
-    drawn_spiral_spring.set_data(_x_spiral_spr + x_a[i], _y_spiral_spr + y_a)
+    # Эллипс маятника
+    x_pendulum = s_values[i] + (OA * 2 / 3) * np.sin(phi_values[i])
+    y_pendulum = R - (OA * 2 / 3) * np.cos(phi_values[i])
+    pendulum_ellipse.set_center((x_pendulum, y_pendulum))
+    pendulum_ellipse.angle = np.degrees(phi_values[i])
 
-    drawn_wheel1_d.set_data([x_c1[i] + WHEEL_R * np.sin(alpha[i]), x_c1[i] - WHEEL_R * np.sin(alpha[i])],
-                            [y_c1 + WHEEL_R * np.cos(alpha[i]), y_c1 - WHEEL_R * np.cos(alpha[i])])
-    drawn_wheel2_d.set_data([x_c2[i] + WHEEL_R * np.sin(alpha[i]), x_c2[i] - WHEEL_R * np.sin(alpha[i])],
-                            [y_c2 + WHEEL_R * np.cos(alpha[i]), y_c2 - WHEEL_R * np.cos(alpha[i])])
+    # Точка O
+    point_o.set_data(s_values[i], R)
 
-    return (
-        drawn_box, drawn_wheel1, drawn_wheel2, drawn_vc1, drawn_vc2, drawn_ab, point_a,
-        point_b, drawn_spring, drawn_spiral_spring, drawn_wheel1_d, drawn_wheel2_d
-    )
+    # Линия OA
+    x_oa = [s_values[i], s_values[i] + OA * np.sin(phi_values[i])]
+    y_oa = [R, R - OA * np.cos(phi_values[i])]
+    line_oa.set_data(x_oa, y_oa)
+
+    # Точка на конце линии OA
+    point_a.set_data(x_oa[1], y_oa[1])
+
+    return diameter_line, pendulum_ellipse, cylinder, spring, bar, point_o, line_oa, point_a
 
 
-# Запуск анимации
-anim = FuncAnimation(figure, animate, frames=len(t), interval=40, repeat=False)
+# Создание анимации
+animation = FuncAnimation(fig, animate, frames=len(t), interval=1000 / fps, blit=True)
 
-# Запуск pyplot
 plt.show()
