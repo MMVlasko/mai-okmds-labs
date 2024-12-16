@@ -69,13 +69,13 @@ s_values = Y[:, 0]
 phi_values = Y[:, 1]
 
 d_s_values = Y[:, 2]
-d_phi_values = Y[:, 3]
+d_phi_values = np.array(Y[:, 3])
 
 dd_s_values = [ode_system(y, t, OA, m1, m2, g, J0, M0, R, w, c)[2] for y, t in zip(Y, t)]
 dd_phi_values = [ode_system(y, t, OA, m1, m2, g, J0, M0, R, w, c)[3] for y, t in zip(Y, t)]
 
-rox_values = m2 * (dd_s_values + OA * (dd_phi_values * np.cos(phi_values) - d_phi_values * np.sin(phi_values)))
-roy_values = m2 * (g + OA * (dd_phi_values * np.sin(phi_values) + d_phi_values * np.cos(phi_values)))
+rox_values = m2 * (dd_s_values + OA * (dd_phi_values * np.cos(phi_values) - d_phi_values ** 2 * np.sin(phi_values)))
+roy_values = m2 * (g + OA * (dd_phi_values * np.sin(phi_values) + d_phi_values ** 2 * np.cos(phi_values)))
 
 # Создаем окно с 4 графиками в формате 2x2
 gr_fig, gr_axs = plt.subplots(2, 2, figsize=(15, 7))
