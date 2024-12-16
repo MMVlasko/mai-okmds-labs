@@ -6,6 +6,7 @@ from scipy.integrate import odeint
 
 
 def ode_system(y, _t, h, _m1, _m2, _g, j0, m0, r, _w, _c):
+    """Представляет систему дифференциальных уравнений"""
     dy = np.zeros(4)
     dy[0] = y[2]
     dy[1] = y[3]
@@ -18,6 +19,7 @@ def ode_system(y, _t, h, _m1, _m2, _g, j0, m0, r, _w, _c):
     a22 = j0
     b2 = -_m2 * _g * h * np.sin(y[1])
 
+    # Выражение вторых производных по методу Крамера
     dy[2] = (b1 * a22 - b2 * a12) / (a11 * a22 - a12 * a21)
     dy[3] = (b2 * a11 - b1 * a21) / (a11 * a22 - a12 * a21)
 
